@@ -16,50 +16,51 @@ var connector = new botbuilder.ChatConnector({
 
 server.post('/api/messages', connector.listen());
 
-var bot = new botbuilder.UniversalBot(connector, function(session){
+var bot = new botbuilder.UniversalBot(connector, [
 
-    // Setup bot response when message sent
-    session.send('you have tapped: %s | [length %s]', session.message.text, session.message.text.length);
-    session.send('Type : %s', session.message.type);
+    function (session) {
+        session.beginDialog('reservation', session.dialogData.reservation);
+    },
+    function (session, results) {
+        session.dialogData.reservation = results.response;
+        session.send(`Reservation enregistrée. <br/> Voici les détails: <br/>Date/Heure: ${session.dialogData.reservation.date} <br/>Nombre de personnes: ${session.dialogData.reservation.size} <br/>Nom: ${session.dialogData.reservation.name}`);
+    }
+]);
 
-    bot.on('typing', function(message) {
-        bot.send(new botbuilder.Message().address(message.address).text('Aller michel, tu peux le faire !!'))
-    });
+bot.dialog('reservation', [
 
-    // Setup event listener for conversationUpdate event
-    bot.on('conversationUpdate', function (message) {
-
-        // Check if new member is added
-        if (message.membersAdded && message.membersAdded.length > 0) {
-            var membersAdded = message.membersAdded
-                .map(function (m) {
-                    var isSelf = m.id === message.address.bot.id;
-                    return (isSelf ? message.address.bot.name : m.name) || '' + ' (Id: ' + m.id + ')';
-                })
-                .join(', ');
-    
-            bot.send(new botbuilder.Message()
-                .address(message.address)
-                .text('Bienvenue à toi ' + membersAdded));
+    function (session, args, next) {
+        session.dialogData.reservation = args || {};
+        if (!session.dialogData.reservation.date) {
+            botbuilder.Prompts.text(session, "Veuillez renseigner la date de votre réservation (ex: 6 octobre à 18h)");
+        } else {
+            next();
         }
-    
-        // Check if member is removed
-        if (message.membersRemoved && message.membersRemoved.length > 0) {
-            var membersRemoved = message.membersRemoved
-                .map(function (m) {
-                    var isSelf = m.id === message.address.bot.id;
-                    return (isSelf ? message.address.bot.name : m.name) || '' + ' (Id: ' + m.id + ')';
-                })
-                .join(', ');
-    
-            bot.send(new botbuilder.Message()
-                .address(message.address)
-                .text(membersRemoved + ' nous a quitté :('));
+    },
+    function (session, results, next) {
+        if (results.response) {
+            session.dialogData.reservation.date = results.response;
         }
-    });
-
-    //session.send(JSON.stringify(session.dialogData));
-    //session.send(JSON.stringify(session.sessionState));    
-    //session.send(JSON.stringify(session.conversationData));
-    //session.send(JSON.stringify(session.userData));    
-})
+        if (!session.dialogData.reservation.size) {
+            botbuilder.Prompts.text(session, "Combien de personne y aura t il ?");
+        } else {
+            next();
+        }
+    },
+    function (session, results, next) {
+        if (results.response) {
+            session.dialogData.reservation.size = results.response;
+        }
+        if (!session.dialogData.reservation.name) {
+            botbuilder.Prompts.text(session, "A quel nom est la réservation ?");
+        } else {
+            next();
+        }
+    },
+    function (session, results) {
+        if (results.response) {
+            session.dialogData.reservation.name = results.response;
+        }
+        session.endDialogWithResult({ response: session.dialogData.reservation });
+    }
+]);
