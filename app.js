@@ -19,8 +19,8 @@ server.post('/api/messages', connector.listen());
 var bot = new botbuilder.UniversalBot(connector, [
 
     function (session) {
-        session.beginDialog('alarm:dialog', session.dialogData);
+        session.beginDialog('rh:offers', session.dialogData);
     },
 ]);
 
-bot.library(require('./dialogs/alarm'));
+bot.library(require('./dialogs/rh'));
